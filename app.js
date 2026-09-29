@@ -1,13 +1,20 @@
-(() => {
+(async () => {
   "use strict";
 
-  const posts = [...window.BLOG_POSTS].sort((a, b) => b.date.localeCompare(a.date));
-  const categories = {
-    tech: { name: "技术笔记", icon: "code" },
-    life: { name: "生活随笔", icon: "leaf" },
-    reading: { name: "阅读记录", icon: "book" }
-  };
   const $ = (selector) => document.querySelector(selector);
+  let posts;
+  let categories;
+  try {
+    const response = await fetch("data/posts.json", { cache: "no-cache" });
+    if (!response.ok) throw new Error("Article index unavailable");
+    ({ posts, categories } = await response.json());
+  } catch {
+    document.querySelectorAll(".page").forEach((page) => { page.hidden = page.id !== "page-error"; });
+    $("#page-label").textContent = "加载失败";
+    $("#content-error-message").textContent = location.protocol === "file:" ? "请通过本地预览服务打开博客。" : "文章暂时无法加载，请刷新页面再试。";
+    $("#reload-site").addEventListener("click", () => location.reload());
+    return;
+  }
   const escapeHTML = (value) => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
   const icon = (name, small = false) => `<svg class="icon${small ? " small" : ""}" aria-hidden="true"><use href="#icon-${name}"/></svg>`;
   const formatDate = (date) => date.replaceAll("-", ".");
@@ -18,6 +25,10 @@
   let activeCategory = "all";
   let lastRoute = "";
   let toastTimer;
+  let articleController;
+  let routeVersion = 0;
+  let searchIndexPromise;
+  let searchVersion = 0;
 
   function cover(post, extraClass = "") {
     const illustrations = {
@@ -42,6 +53,16 @@
 
   function tagLink(tag) {
     return `<a class="tag-chip" href="#tags/${encodeURIComponent(tag)}">${escapeHTML(tag)} <span>${tagCounts.get(tag)}</span></a>`;
+  }
+
+  function renderFeatured() {
+    const post = posts.find((item) => item.featured);
+    const element = $("#featured-article");
+    element.hidden = !post;
+    if (!post) return;
+    element.href = `#article/${encodeURIComponent(post.id)}`;
+    element.setAttribute("aria-label", `阅读精选文章：${post.title}`);
+    element.querySelector(".featured-content").innerHTML = `<span class="featured-label">${icon("leaf", true)} 编辑精选${post.sample ? " <span>·</span> 示例文章" : ""}</span><h2>${escapeHTML(post.title)}</h2><p>${escapeHTML(post.description)}</p><span class="featured-meta"><time datetime="${post.date}">${formatDate(post.date)}</time><span>·</span>${post.minutes} 分钟阅读<span class="featured-read">开始阅读 ${icon("arrow", true)}</span></span>`;
   }
 
   function renderHome() {
@@ -70,9 +91,23 @@
     $("#tag-articles").innerHTML = selectedPosts.map(articleCard).join("") || '<p class="empty-state">还没有使用这个标签的文章，试试其他标签吧。</p>';
   }
 
-  function renderArticle(post) {
+  async function renderArticle(post, version) {
     const related = posts.filter((item) => item.id !== post.id).sort((a, b) => Number(b.category === post.category) - Number(a.category === post.category)).slice(0, 2);
-    $("#article-content").innerHTML = `<a href="#archive" class="back-link">${icon("arrow", true)} 返回文章归档</a><article><header class="article-header">${categoryLabel(post.category)}<h1>${escapeHTML(post.title)}</h1><div class="article-info"><img src="assets/avatar.svg" class="avatar" alt="" width="25" height="25"/><span>MuQingCi</span><span>·</span><time datetime="${post.date}">${formatDate(post.date)}</time><span>·</span><span>${post.minutes} 分钟阅读</span></div>${post.sample ? '<p class="sample-note">这是一篇建站示例文章，用于展示阅读效果。你可以在 posts.js 中替换为自己的内容。</p>' : ""}</header>${cover(post, "article-hero")}<div class="article-body">${post.content}</div><footer class="article-bottom"><div class="tag-cloud">${post.tags.map(tagLink).join("")}</div><button class="copy-link" id="copy-link">${icon("copy", true)} 复制文章链接</button></footer></article><h2 class="related-title">继续逛逛</h2><div class="article-grid related-grid">${related.map(articleCard).join("")}</div>`;
+    $("#article-content").innerHTML = `<a href="#archive" class="back-link">${icon("arrow", true)} 返回文章归档</a><article><header class="article-header">${categoryLabel(post.category)}<h1>${escapeHTML(post.title)}</h1><div class="article-info"><img src="assets/avatar.svg" class="avatar" alt="" width="25" height="25"/><span>MuQingCi</span><span>·</span><time datetime="${post.date}">${formatDate(post.date)}</time><span>·</span><span>${post.minutes} 分钟阅读</span></div>${post.sample ? '<p class="sample-note">这是一篇示例文章，用于展示阅读效果。</p>' : ""}</header>${cover(post, "article-hero")}<div class="article-body" aria-busy="true"><p class="loading-note" role="status">正在打开这篇文字...</p></div><footer class="article-bottom"><div class="tag-cloud">${post.tags.map(tagLink).join("")}</div><button class="copy-link" id="copy-link">${icon("copy", true)} 复制文章链接</button></footer></article><h2 class="related-title">继续逛逛</h2><div class="article-grid related-grid">${related.map(articleCard).join("")}</div>`;
+    const controller = new AbortController();
+    articleController = controller;
+    try {
+      const response = await fetch(post.contentUrl, { signal: controller.signal });
+      if (!response.ok) throw new Error("Article unavailable");
+      const html = await response.text();
+      if (version !== routeVersion) return;
+      $(".article-body").innerHTML = html;
+      $(".article-body").setAttribute("aria-busy", "false");
+    } catch (error) {
+      if (error.name === "AbortError" || version !== routeVersion) return;
+      $(".article-body").innerHTML = '<p role="alert">这篇文章暂时无法打开，请重试；如果文章已经更新，请刷新页面。</p><button class="secondary-button" id="retry-article">重新加载</button>';
+      $(".article-body").setAttribute("aria-busy", "false");
+    }
   }
 
   function setMenu(open) {
@@ -82,10 +117,12 @@
     $("#mobile-menu").setAttribute("aria-expanded", String(open));
     $("#mobile-menu").setAttribute("aria-label", open ? "关闭导航" : "打开导航");
     document.body.classList.toggle("nav-open", open);
-    if (open) $("#sidebar .active").focus();
+    if (open) ($("#sidebar .active") || $("#sidebar .brand")).focus();
   }
 
   function route() {
+    const version = ++routeVersion;
+    articleController?.abort();
     let path;
     try { path = decodeURIComponent(location.hash.slice(1) || "home"); }
     catch { path = "not-found"; }
@@ -103,7 +140,7 @@
     else if (section === "article") {
       const post = posts.find((item) => item.id === detail);
       if (post) {
-        renderArticle(post);
+        renderArticle(post, version);
         title = `${post.title} · MuQingCi`;
         label = "阅读文章";
       } else page = "not-found";
@@ -136,9 +173,26 @@
     $('meta[name="theme-color"]').content = isDark ? "#181f1b" : "#f8f9f6";
   }
 
-  function search() {
+  async function search() {
+    const version = ++searchVersion;
     const query = $("#search-input").value.trim().toLocaleLowerCase();
-    const matches = query ? posts.filter((post) => [post.title, post.description, post.tags.join(" "), post.content.replace(/<[^>]*>/g, " ")].join(" ").toLocaleLowerCase().includes(query)) : posts.slice(0, 4);
+    let matches = posts.slice(0, 4);
+    if (query) {
+      $("#search-results").innerHTML = '<p class="search-empty" role="status">正在寻找相关文字...</p>';
+      try {
+        searchIndexPromise ||= fetch("data/search.json").then(async (response) => {
+          if (!response.ok) throw new Error("Search unavailable");
+          const entries = await response.json();
+          return new Map(entries.map((entry) => [entry.id, entry.text.toLocaleLowerCase()]));
+        }).catch((error) => { searchIndexPromise = undefined; throw error; });
+        const index = await searchIndexPromise;
+        if (version !== searchVersion || !$("#search-dialog").open) return;
+        matches = posts.filter((post) => index.get(post.id)?.includes(query));
+      } catch {
+        if (version === searchVersion && $("#search-dialog").open) $("#search-results").innerHTML = '<p class="search-empty" role="alert">搜索暂时不可用，请重新输入关键词再试。</p>';
+        return;
+      }
+    }
     $("#search-results").innerHTML = matches.length ? `<p class="search-summary">${query ? `找到 ${matches.length} 篇文字` : "最近的文字"}</p>${matches.map((post) => `<a class="search-result" href="#article/${post.id}"><h3>${escapeHTML(post.title)}</h3><p>${categories[post.category].name} · ${formatDate(post.date)} · ${post.minutes} 分钟阅读</p></a>`).join("")}` : `<p class="search-empty">没有找到相关文字。试试「JavaScript」「生活」或其他关键词。</p>`;
   }
 
@@ -174,7 +228,10 @@
   $("#nav-post-count").textContent = countLabel(posts.length);
   $("#stat-articles").textContent = countLabel(posts.length);
   $("#stat-tags").textContent = countLabel(tags.length);
+  $("#stat-categories").textContent = countLabel(Object.keys(categories).length);
   $("#home-tags").innerHTML = tags.slice(0, 8).map(tagLink).join("");
+  $(".filter-bar").innerHTML = '<button class="filter-button active" data-category="all" aria-pressed="true">全部</button>' + Object.entries(categories).map(([id, category]) => `<button class="filter-button" data-category="${escapeHTML(id)}" aria-pressed="false">${escapeHTML(category.name)}</button>`).join("");
+  renderFeatured();
   try { applyTheme(localStorage.getItem("muqingci-theme") === "dark" ? "dark" : "light"); }
   catch { applyTheme("light"); }
 
@@ -199,7 +256,7 @@
   $("#search-trigger").addEventListener("click", openSearch);
   $("#search-close").addEventListener("click", () => $("#search-dialog").close());
   $("#search-input").addEventListener("input", search);
-  $("#search-dialog").addEventListener("close", () => document.body.classList.remove("modal-open"));
+  $("#search-dialog").addEventListener("close", () => { ++searchVersion; document.body.classList.remove("modal-open"); });
   $("#search-dialog").addEventListener("click", (event) => {
     if (event.target.closest(".search-result")) $("#search-dialog").close();
     if (event.target === $("#search-dialog")) {
@@ -207,7 +264,10 @@
       if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) event.target.close();
     }
   });
-  $("#article-content").addEventListener("click", (event) => { if (event.target.closest("#copy-link")) copyArticleLink(); });
+  $("#article-content").addEventListener("click", (event) => {
+    if (event.target.closest("#copy-link")) copyArticleLink();
+    if (event.target.closest("#retry-article")) route();
+  });
   document.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); openSearch(); }
     if (event.key === "Escape" && $("#sidebar").classList.contains("open")) { setMenu(false); $("#mobile-menu").focus(); }
