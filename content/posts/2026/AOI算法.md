@@ -2,8 +2,8 @@
 id: AOI
 title: AOI算法心得体会
 description: 九宫格、十字链表、四叉树...常见AOI核心思路的小心得
-date: 2026-10-8
-category: GameTechnology
+date: 2026-10-08
+category: tech
 tags:
   - 博客
   - 游戏技术
