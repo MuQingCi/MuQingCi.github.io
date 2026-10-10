@@ -69,9 +69,9 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .sidebar-note p { color: var(--muted); font: 12px/2 var(--serif); letter-spacing: 1px; }
 .note-en { display: block; font-size: 7px; color: var(--soft); letter-spacing: 1px; margin-top: 13px; }
 .sidebar-bottom { margin-top: auto; }
-.github-link { display: flex; align-items: center; gap: 12px; padding: 14px 13px; color: var(--muted); font-size: 12px; }
-.github-link > .small { margin-left: auto; }
-.github-link:hover { color: var(--green); }
+.github-link { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 5px; color: var(--muted); font-size: 10px; white-space: nowrap; }
+.github-link .icon { width: 16px; height: 16px; }
+.github-link:hover { color: var(--green); background: var(--green-soft); }
 .sidebar-footer { padding: 14px 8px 0 13px; margin-top: 8px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
 .sidebar-footer > span { font-size: 10px; color: var(--muted); display: flex; gap: 7px; align-items: center; }
 .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #819c66; flex: 0 0 auto; }
