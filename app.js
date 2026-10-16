@@ -38,7 +38,8 @@
       books: '<div class="book-stack"><span></span><span></span><span></span></div>',
       grid: '<div class="grid-sketch"><span></span><span></span><span></span><span></span><span></span><span></span></div>',
       journal: `<div class="notebook">${icon("leaf")}</div><span class="pencil"></span>`,
-      mountains: '<img src="assets/mountains.svg" alt="" width="1200" height="460" loading="lazy"/>'
+      mountains: '<img src="assets/mountains.svg" alt="" width="1200" height="460" loading="lazy"/>',
+      GameTech: '<img src="assets/covers/GameTech.png" alt="" loading="lazy" />',
     };
     return `<div class="article-cover cover-${post.cover} ${extraClass}" aria-hidden="true">${illustrations[post.cover] || ""}</div>`;
   }

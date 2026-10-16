@@ -185,6 +185,13 @@ main { padding: 0 44px; min-height: calc(100vh - 173px); max-width: 1510px; marg
 .pencil:after { content: ""; position: absolute; bottom: -9px; border-left: 3px solid transparent; border-right: 3px solid transparent; border-top: 9px solid #607354; }
 .cover-mountains { background: #e9eee3; }
 .cover-mountains img { height: 100%; width: 100%; object-fit: cover; object-position: right; }
+
+.cover-GameTech img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .list-end { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 31px 0 0; color: var(--soft); }
 .list-end > span { height: 1px; width: 24px; background: var(--line); }
 .list-end p { font-size: 9px; letter-spacing: .5px; }
@@ -277,6 +284,7 @@ main { padding: 0 44px; min-height: calc(100vh - 173px); max-width: 1510px; marg
 .article-info .avatar { width: 25px; height: 25px; }
 .sample-note { margin-top: 24px; background: var(--green-soft); color: var(--green); padding: 11px 15px; border-radius: 6px; font-size: 11px; }
 .article-hero { margin-top: 25px; border-radius: 10px; height: 220px; }
+.article-hero.cover-GameTech, .article-hero.cover-GameTech img { height: auto; }
 .article-hero .mini-terminal { width: 250px; max-width: none; height: 130px; }
 .article-hero .mini-terminal pre { font-size: 11px; }
 .article-body { font-size: 15px; line-height: 2.05; padding: 15px 0 20px; overflow-wrap: anywhere; }

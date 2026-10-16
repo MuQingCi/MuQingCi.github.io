@@ -8,7 +8,7 @@ tags:
   - 博客
   - 游戏技术
 minutes: 5
-cover: journal
+cover: GameTech
 sample: true
 ---
 

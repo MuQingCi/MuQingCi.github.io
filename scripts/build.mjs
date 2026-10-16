@@ -6,7 +6,7 @@ import { marked } from "marked";
 import { parseDocument } from "yaml";
 
 export const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const covers = new Set(["code", "garden", "git", "books", "grid", "journal", "mountains"]);
+const covers = new Set(["code", "garden", "git", "books", "grid", "journal", "mountains", "GameTech"]);
 const fields = new Set(["id", "title", "description", "date", "category", "tags", "minutes", "cover", "featured", "sample"]);
 
 async function markdownFiles(directory) {
